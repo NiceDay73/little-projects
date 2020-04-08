@@ -6,14 +6,14 @@ using TKinter for GUI
 TODO LIST:
     - New File -> Done
     - Open file -> Done
-    - Save ->
-    - Save As ->
-    - Change font size ->
-    - Move scrollbar to the last line when copy&paste ->
+    - Save -> Done
+    - Save As -> Done
     - Confirm exit if file has been modified ->
+    - Move scrollbar to the last line when copy&paste ->
+    - Backup before any discard ->
     - Recent files menu option ->
     - Shortcuts for file menu options ->
-    - Backup before any discard
+    - Change font size ->
 '''
 import tkinter as tk
 from tkinter import messagebox, filedialog
@@ -66,7 +66,8 @@ class Editor(tk.Frame):
         self.root = root
         self.font_size = 17
         self.original_text = ''
-        self.filename = os.getcwd() + f'/{self.root.name}'
+        self.filename = os.getcwd() + '/' + self.root.name
+        self.filename = self.filename[:-1]  # remove last *
         # Create the text area, define background colour as grey,
         # foreground color as white and font using the tuple fonts_spec
         self.textarea = tk.Text(root, bg='#232323', fg='white',
@@ -133,7 +134,8 @@ class Editor(tk.Frame):
                 self.root.name = self.FIRST_FILE
                 self.set_title()
                 self.original_text = ''
-                self.filename = os.getcwd() + f'/{self.root.name}'
+                self.filename = os.getcwd() + '/' + self.root.name
+                self.filename = self.filename[:-1]  # remove last *
             else:
                 # don't do anything if user don't want to discard changes
                 pass
@@ -142,7 +144,8 @@ class Editor(tk.Frame):
             self.root.name = self.FIRST_FILE
             self.set_title()
             self.original_text = ''
-            self.filename = os.getcwd() + f'/{self.root.name}'
+            self.filename = os.getcwd() + '/' + self.root.name
+            self.filename = self.filename[:-1]  # remove last *
 
     def open_file(self):
         msg = 'File has been modified.\nDiscard changes and continue?'
@@ -151,8 +154,6 @@ class Editor(tk.Frame):
             if self.confirm_message(msg):
                 self.clean_textarea()
                 filename = filedialog.askopenfilename()
-                print('1:', filename)
-                print('2:', self.filename)
                 self.filename = filename
                 self.root.name = filename + '*'
                 self.set_title()
@@ -162,8 +163,6 @@ class Editor(tk.Frame):
         else:
             self.clean_textarea()
             filename = filedialog.askopenfilename()
-            print('3:', filename)
-            print('4:', self.filename)
             self.filename = filename
             self.root.name = filename + '*'
             self.set_title()
@@ -179,8 +178,10 @@ class Editor(tk.Frame):
             except:
                 msg = 'Error while opening the file!!!'
                 self.show_message(msg)
-                self.root.name = 'untitled*'
+                self.root.name = self.FIRST_FILE
                 self.set_title()
+                self.filename = os.getcwd() + '/' + self.root.name
+                self.filename = self.filename[:-1]  # remove last *
                 self.original_text = ''
             # initialize the modified flag to False
             self.textarea.edit_modified(False)
@@ -193,19 +194,13 @@ class Editor(tk.Frame):
                     return True
                 else:
                     msg = '''
-                    The file has been modified by another application.
-                    Please Save As with another name!!
-                    '''
+                          The file has been modified by another application.
+                          Please Save As with another name!!
+                          '''
                     self.show_message(msg)
                     return False
         except:
             return True
-#            msg = '''
-#            File does not exist!!
-#            Please Save As with another name!!
-#            '''
-#            self.show_message(msg)
-#            return False
 
     def save(self):
         if self.can_save():
@@ -214,10 +209,10 @@ class Editor(tk.Frame):
             # because the function always return an extra \n
             filetext = self.textarea.get('1.0', 'end-1c')
             try:
-                with open(self.filename, mode='w') as fd:
-                    fd.write(filetext)
                 if self.root.name[-1] == '*':
                     self.root.name = self.root.name[:-1]
+                with open(self.filename, mode='w') as fd:
+                    fd.write(filetext)
                     self.set_title()
             except Exception as e:
                 print('ERROR saving the file', e)
@@ -228,6 +223,16 @@ class Editor(tk.Frame):
         # this returns all the text. end-1c means that subtract 1 char from the
         # last position because the function always return an extra \n
         filetext = self.textarea.get('1.0', 'end-1c')
+        new_filename = filedialog.asksaveasfilename()
+        if new_filename != '':
+            try:
+                self.root.name = new_filename.split('/')[-1]
+                self.filename = new_filename
+                with open(self.filename, mode='w') as fd:
+                    fd.write(filetext)
+                    self.set_title()
+            except Exception as e:
+                print('ERROR saving the file', e)
 
 
 def main():
