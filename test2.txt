@@ -1,6 +1,0 @@
-This is test file.
-This is the second line.
-This is an inserted line.
-This is another inserted line.
-And the last one.
-Only in test2,txt

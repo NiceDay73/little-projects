@@ -8,9 +8,10 @@ TODO LIST:
     - Open file -> Done
     - Save -> Done
     - Save As -> Done
-    - Confirm exit if file has been modified ->
+    - Confirm exit if file has been modified -> Done
+    - Show * after the filename if the content has been modified -> Done
     - Move scrollbar to the last line when copy&paste ->
-    - Backup before any discard ->
+    - Backup before any save operation ->
     - Recent files menu option ->
     - Shortcuts for file menu options ->
     - Change font size ->
@@ -41,7 +42,7 @@ class Menubar():
         file_dropdown.add_command(label='Save', command=parent.save)
         file_dropdown.add_command(label='Save As', command=parent.save_as)
         file_dropdown.add_separator()
-        file_dropdown.add_command(label='Exit', command=parent.root.destroy)
+        file_dropdown.add_command(label='Exit', command=parent.exit)
 
         # add the dropdown menu to the menubar
         menubar.add_cascade(label='File', menu=file_dropdown)
@@ -52,6 +53,21 @@ class Editor(tk.Frame):
     This class is the main class. Contains the aplication.
     '''
     FIRST_FILE = 'untitled*'
+
+    def key_pressed(self, event):
+        # when any key is pressed the file is marked as unsaved with *
+        if self.root.name[-1] != '*':
+            self.root.name = self.root.name + '*'
+            self.set_title()
+
+    def key_copy(self, event):
+        # to see the last lines of the file
+        try:
+            # recover numbver of lines copied
+            lines = len(self.textarea.clipboard_get().split('\n'))
+            self.textarea.see('end')    # this don't work!!!!!!
+        except:
+            pass
 
     def __init__(self, root):
         tk.Frame.__init__(self, root)
@@ -72,7 +88,8 @@ class Editor(tk.Frame):
         # foreground color as white and font using the tuple fonts_spec
         self.textarea = tk.Text(root, bg='#232323', fg='white',
                                 font=fonts_spec, wrap=tk.WORD,
-                                cursor='arrow', insertbackground='white')
+                                cursor='arrow', insertbackground='white',
+                                padx=10, pady=10)
         # create a vertical scroll bar
         self.scrollbar = tk.Scrollbar(root, orient=tk.VERTICAL)
         self.textarea.configure(yscrollcommand=self.scrollbar.set)
@@ -91,7 +108,12 @@ class Editor(tk.Frame):
         # add the menu bar at the top
         self.menubar = Menubar(self)
 
+        # detect key press to compare if the file has changed
+        self.textarea.bind('<KeyPress>', self.key_pressed)
+        self.textarea.bind('<Control-v>', self.key_copy)
+
     # METHODS
+
     def set_title(self):
         # updates the title and refresh the window
         self.root.wm_title(f'{self.root.name} - SimEdit')
@@ -107,17 +129,12 @@ class Editor(tk.Frame):
                                     title='ERROR')
 
     def is_file_modified(self):
-        # * means that the file has not been saved
-        if self.root.name[-1] == '*':
-            # if the text area has been modified
-            if self.textarea.edit_modified():
-                return True
-            else:
-                return False
-        else:
-            # if the file has been saved and ther is no * at the end
-            # of the name, there are no modifications.
+        # if the original text is the same that the actual text,
+        # the file has not been modified
+        if self.original_text == self.textarea.get('1.0', 'end-1c'):
             return False
+        else:
+            return True
 
     def clean_textarea(self):
         # remove all content of the textarea and set the modified flag
@@ -152,24 +169,20 @@ class Editor(tk.Frame):
         filename = ''
         if self.is_file_modified():
             if self.confirm_message(msg):
-                self.clean_textarea()
                 filename = filedialog.askopenfilename()
-                self.filename = filename
-                self.root.name = filename + '*'
-                self.set_title()
             else:
                 # don't do anything if user don't want to discard changes
                 pass
         else:
-            self.clean_textarea()
             filename = filedialog.askopenfilename()
+
+        # if the user has choosen a file, initialize the text area,
+        # open it and write its content into the editor
+        if filename != '':
+            self.clean_textarea()
             self.filename = filename
             self.root.name = filename + '*'
             self.set_title()
-
-        # if the user has choosen a file, open it and write its content
-        # into the editor
-        if len(filename) > 0:
             try:
                 with open(filename, mode='r') as fd:
                     filetext = fd.read()
@@ -193,10 +206,12 @@ class Editor(tk.Frame):
                 if self.original_text == filetext:
                     return True
                 else:
+                    #                    msg = 'The file has been modified\nby another application.\nPlease Save As with another name!!'
                     msg = '''
-                          The file has been modified by another application.
-                          Please Save As with another name!!
-                          '''
+The file has been modified
+by another application.
+Please Save As with another name!!
+'''
                     self.show_message(msg)
                     return False
         except:
@@ -214,6 +229,7 @@ class Editor(tk.Frame):
                 with open(self.filename, mode='w') as fd:
                     fd.write(filetext)
                     self.set_title()
+                    self.original_text = filetext
             except Exception as e:
                 print('ERROR saving the file', e)
         else:
@@ -231,8 +247,17 @@ class Editor(tk.Frame):
                 with open(self.filename, mode='w') as fd:
                     fd.write(filetext)
                     self.set_title()
+                    self.original_text = filetext
             except Exception as e:
                 print('ERROR saving the file', e)
+
+    def exit(self):
+        msg = 'File has been modified.\nDiscard changes and exit?'
+        if self.is_file_modified():
+            if self.confirm_message(msg):
+                self.root.destroy()
+        else:
+            self.root.destroy()
 
 
 def main():
